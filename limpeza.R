@@ -29,13 +29,14 @@ historico_limpo <- historico %>%
             matricula_prof = as.factor(`Matricula Prof`),
             professor = rm_accent(toupper(Professor)),
             turma = as.factor(Turma),
-            mencao = as.factor(Menção),
+            mencao = factor(Menção, ordered = TRUE, levels = c("SR", "II", "MI", "TR", "TJ", "DP", "CC", "MM", "MS", "SS")),
             faltas = as.numeric(str_replace(Faltas, "%", ""))/100,
             hora_inicio = times(paste0(`Hora início`, ":00")),
             hora_fim = times(paste0(`Hora Fim`, ":00")),
             resultado = fct_collapse(mencao,
-                                     "Aprovação" = c("SS", "MS", "MM"),
-                                     "Reprovação" = c("MI", "II", "SR")
+                                     "Aprovação" = c("SS", "MS", "MM", "CC", "DP"),
+                                     "Reprovação" = c("MI", "II", "SR"),
+                                     "Trancamento" = c("TR", "TJ")
                                      )
          ) %>% arrange(matricula)
 
@@ -49,7 +50,7 @@ servico <- c("Bioestatistica", "Estatistica Aplicada", "Probabilidade E Estatist
 
 historico_limpo <- historico_limpo %>% 
   mutate(disciplina = str_replace(disciplina, "Das Series Temporais", "De Series Temporais"),
-         disciplina = fct_collapse(disciplina, "Estatistica Exploratoria" = c("Estatistica Exploratoria 1", "Estatistica Exploratoria")),
+         disciplina = fct_collapse(disciplina, "Estatstica Exploratoria" = c("Estatistica Exploratoria 1", "Estatistica Exploratoria")),
          tipo = as.factor(ifelse(disciplina %in% servico, "Serviço", "Bacharelado")))
 
 # Colocar acento
@@ -86,12 +87,18 @@ historico_limpo %>% count(nome, curso, disciplina, professor, ano, periodo, hora
 
 # Aparentemente tem muitas observações que repetem pela quantidade de créditos (tem valores repetidos até 10 vezes)
 # Substituir nome por matricula reduz os casos repetidos, provavelmente porque a pessoa trocou de curso/matricula
-# Mas ainda assim tem muito (12 mil no primeiro caso)
-
 
 historico_limpo <- historico_limpo %>% distinct(nome, disciplina, ano, periodo, turma, mencao, .keep_all = TRUE)
+# Removi considierando matrícula mais recente 
+# Importante: tinha deixado antes a matricula como string, aí na hora de remover duplicadas, não removeu a certa "1100102410" < "9913246"
 
-# importante: tinha deixado antes a matricula como string, aí na hora de remover duplicadas, não removeu a certa "1100102410" < "9913246"
+# Menções Diferentes
+historico_limpo %>% arrange(desc(mencao)) %>% get_dupes(nome, matricula, disciplina, curso, ano, periodo, hora_inicio, hora_fim)
+
+historico_limpo <- historico_limpo %>% 
+  arrange(desc(mencao)) %>% 
+  distinct(nome, matricula, disciplina, curso, ano, periodo, hora_inicio, hora_fim, .keep_all = TRUE)
+
 # #TODO ainda tem repetição pra só horarios diferentes 
 
 saveRDS(historico_limpo, "historico_limpo.rds")
