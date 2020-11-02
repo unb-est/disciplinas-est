@@ -48,7 +48,7 @@ servico <- c("Bioestatistica", "Estatistica Aplicada", "Probabilidade E Estatist
 
 historico_limpo <- historico_limpo %>% 
   mutate(disciplina = str_replace(disciplina, "Das Series Temporais", "De Series Temporais"),
-         disciplina = fct_collapse(disciplina, "Estatstica Exploratoria" = c("Estatistica Exploratoria 1", "Estatistica Exploratoria")),
+         disciplina = fct_collapse(disciplina, "Estatística Exploratoria" = c("Estatistica Exploratoria 1", "Estatistica Exploratoria")),
          tipo = as.factor(ifelse(disciplina %in% servico, "Serviço", "Bacharelado")))
 
 # Colocar acento
