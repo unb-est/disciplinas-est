@@ -9,11 +9,21 @@ library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
 
+# Dados -------------------------------------------------------------------
+
+historico <- read_rds("historico_limpo.rds")
+vagas <- read_rds("vagas_limpo.rds")
+
+bacharelado <- historico %>% filter(tipo == "Bacharelado")
+servico <- historico %>% filter(tipo == "Serviço")
+
+# App ---------------------------------------------------------------------
+
 sidebar<-dashboardSidebar(
     sidebarMenu(
         menuItem("Estatística", tabName = "geral", icon = icon("university")),
-        menuItem("Disciplinas em serviço", tabName = "serviço", icon = icon("handshake")),
-        menuItem("Disciplinas da EST", tabName = "EST", icon = icon("chart-line")),
+        menuItem("Disciplinas de Serviço", tabName = "serviço", icon = icon("handshake")),
+        menuItem("Disciplinas do Bacharelado", tabName = "bacharelado", icon = icon("chart-line")),
         switchInput(
             inputId = "Id015",
             label = "%", 
@@ -24,15 +34,12 @@ sidebar<-dashboardSidebar(
 )
 
 
-
-
 header<-dashboardHeader(title = "Disciplinas da EST")
-
-
 
 body<-dashboardBody(
     
-    
+# Página Inicial ----------------------------------------------------------
+
     tabItems(
         tabItem(tabName = "geral",
                 fluidRow(
@@ -43,8 +50,9 @@ body<-dashboardBody(
                 )            
         ),
         
-        
-        
+
+# Disciplinas de Serviço --------------------------------------------------
+
         tabItem(tabName = "serviço",
                 
                 fluidRow(
@@ -92,23 +100,25 @@ body<-dashboardBody(
                 )             
         ),
         
-        tabItem(tabName = "EST",
+# Bacharelado -------------------------------------------------------------
+
+        tabItem(tabName = "bacharelado",
                 
                 fluidRow(
                     box(title="Parâmetros",status = "warning",solidHeader = T,width=3,
                         selectInput(
-                            'disc', 'Selecione a disciplina:', choices = c("Inferência","DEA","Amostragem"),
+                            'disc', 'Selecione a disciplina:', choices = sort(unique(bacharelado$disciplina)),
                             selectize = FALSE,selected = "None"
                         ),
                         sliderTextInput(
-                            inputId = "semestre",
-                            label = "Selecione o(s) semestre(s) a serem avaliados:", 
-                            choices = c("1/2016","2/2016","1/2017","2/2017","1/2018","2/2018","1/2019","2/2019","1/2020","2/2020"),
+                            inputId = "período",
+                            label = "Selecione o(s) periodo(s) a serem avaliados:", 
+                            choices = unique(bacharelado$periodo),
                             selected = c("1/2018", "1/2018")
                         ),
                         selectInput(
-                            'professor', 'Selecione o professor:', choices = c("Ana Maria Nogales","Eduardo Monteiro","Jhames Sampaio","Maria Teresa"),
-                            selectize = FALSE,selected = "None"
+                            'professor', 'Selecione o professor:', choices = sort(unique(bacharelado$professor)),
+                            selectize = FALSE, selected = "None"
                         ),
                         sliderTextInput(
                             inputId = "horário",
