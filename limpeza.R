@@ -24,7 +24,8 @@ historico_limpo <- historico %>%
             disciplina_cod = as.factor(`Cód. Disciplina`),
             disciplina = as.factor(rm_accent(stri_trans_totitle(Disciplina))),
             ano = as.integer(str_sub(Período, 1, 4)),
-            periodo = as.factor(str_sub(Período, -1, -1)),
+            semestre = as.factor(str_sub(Período, -1, -1)),
+            periodo = factor(paste(ano, semestre, sep = "/"), ordered = TRUE),
             matricula_prof = as.factor(`Matricula Prof`),
             professor = rm_accent(toupper(Professor)),
             turma = as.factor(Turma),
@@ -127,7 +128,8 @@ str(vagas)
 vagas_limpo <- vagas %>% 
   transmute(
     ano = as.integer(str_sub(Semestre, 1, 4)),
-    periodo = as.factor(str_sub(Semestre, -1, -1)),
+    semestre = as.factor(str_sub(Semestre, -1, -1)),
+    periodo = factor(paste(ano, semestre, sep = "/"), ordered = TRUE),
     disciplina_cod = as.factor(`Cód. Disciplina`),
     disciplina = as.factor(rm_accent(stri_trans_totitle(Disciplina))),
     quant_alunos_matriculados_ajuste = as.integer(`Qtde de Alunos que Conseguiram Vaga (Etapa de Ajuste)`),
