@@ -47,10 +47,23 @@ table(historico_limpo$disciplina) # De Series Temporais e Das Series Temporais
 
 servico <- c("Bioestatistica", "Estatistica Aplicada", "Probabilidade E Estatistica", "Probabilidade E Estatistica 2")
 
+professores_ativos <- c('ALAN RICARDO DA SILVA', 'ANA MARIA NOGALES VASCONCELOS', 'ANDRE LUIZ FERNANDES CANCADO',
+                        'ANTONIO EDUARDO GOMES', 'BERNARDO BORBA DE ANDRAD', 'BERNARDO NOGUEIRA SCHLEMPER',
+                        'CIBELE QUEIROZ DA SILVA', 'CIRA ETHEOWALDA GUEVARA OTINIANO', 'CLAUDETE RUAS',
+                        'DEMERSON ANDRE POLLI', 'DONALD MATTHEW PIANTO', 'EDUARDO FREITAS DA SILVA',
+                        'EDUARDO MONTEIRO DE CASTRO GOMES', 'EDUARDO YOSHIO NAKANO', 'GEORGE FREITAS VON BORRIES',
+                        'GERALDO DA SILVA E SOUZA', 'GLADSTON LUIZ DA SILVA', 'GUILHERME SOUZA RODRIGUES',
+                        'GUSTAVO LEONEL GILARDONI AVALLE', 'HELTON SAULO BEZERRA DOS SANTOS', 'ISRAEL DE FREITAS MADUREIRA',
+                        'JHAMES MATOS SAMPAIO', 'JOANLISE MARCO DE LEON ANDRADE', 'JOSE ANGELO BELLONI',
+                        'JOSE AUGUSTO FIORUCCI', 'JULIANA BETINI FACHINI GOMES', 'LEANDRO TAVARES CORREIA',
+                        'LUCAS MOREIRA', 'LUIS GUSTAVO DO AMARAL VINHA', 'MARIA TERESA LEAO COSTA', 'PETER ZORNIG', 
+                        'RAUL YUKIHIRO MATSUSHITA', 'ROBERTO VILA GABRIEL', 'THAIS CARVALHO VALADARES RODRIGUES')
+
 historico_limpo <- historico_limpo %>% 
   mutate(disciplina = str_replace(disciplina, "Das Series Temporais", "De Series Temporais"),
          disciplina = fct_collapse(disciplina, "Estatística Exploratoria" = c("Estatistica Exploratoria 1", "Estatistica Exploratoria")),
-         tipo = as.factor(ifelse(disciplina %in% servico, "Serviço", "Bacharelado")))
+         tipo = as.factor(ifelse(disciplina %in% servico, "Serviço", "Bacharelado")),
+         prof_ativo = ifelse(professor %in% professores_ativos, TRUE, FALSE))
 
 # Colocar acento
 
