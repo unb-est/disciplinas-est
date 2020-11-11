@@ -8,6 +8,7 @@ library(plotly)
 library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
+library(scales)
 
 # Dados -------------------------------------------------------------------
 
@@ -16,6 +17,10 @@ vagas <- read_rds("vagas_limpo.rds")
 
 bacharelado <- historico %>% filter(tipo == "Bacharelado")
 servico <- historico %>% filter(tipo == "Serviço")
+
+conditional <- function(condition, success) {
+  if (condition) success else TRUE
+}
 
 # App ---------------------------------------------------------------------
 
@@ -76,7 +81,7 @@ body<-dashboardBody(
                             selectize = FALSE,selected = "None"
                         ),
                         sliderTextInput(
-                            inputId = "horário",
+                            inputId = "horario",
                             label = "Filtre pelo horário:", 
                             choices = c("8h", "10h", "12h", "14h", "16h",'18h')
                         ),
@@ -113,25 +118,25 @@ body<-dashboardBody(
                             multiple = TRUE
                         ),
                         sliderTextInput(
-                            inputId = "período",
+                            inputId = "bach_periodo",
                             label = "Filtre pelo(s) periodo(s):", 
                             choices = sort(unique(bacharelado$periodo)),
                             selected = c(as.character(min(bacharelado$periodo)), as.character(max(bacharelado$periodo)))
                         ),
                         selectInput(
-                            'professor', 'Filtre pelo(s) professor(es):', 
+                            'bach_professor', 'Filtre pelo(s) professor(es):', 
                             choices = sort(unique(bacharelado$professor)),
                             selected = "None",
                             multiple = TRUE
                         ),
                         selectInput(
-                            inputId = "horário",
+                            inputId = "bach_horario",
                             label = "Filtre pelo(s) horário(s):", 
                             choices = sort(unique(bacharelado$horario)),
                             multiple = TRUE
                         ),
                         selectInput(
-                            inputId = "turma",
+                            inputId = "bach_turma",
                             label = "Filtre pela(s) turma(s):", 
                             choices = sort(as.character(unique(bacharelado$turma))),
                             multiple = TRUE
@@ -217,45 +222,55 @@ server <- function(input, output) {
 
 # Bacharelado -------------------------------------------------------------
 
-    disc_selecionadas <- reactive({
-      if(is.null(input$bach_disc)){
-        return(bacharelado)
-      }
-      filter(bacharelado, disciplina %in% input$bach_disc)
-      })
+    # bach_filtrado <- reactive({
+    #   if(is.null(input$bach_disc)){
+    #     return(bacharelado)
+    #   }
+    #   filter(bacharelado, disciplina %in% input$bach_disc)
+    #   })
+    # 
+    bach_filtrado <- reactive({
+      bacharelado %>%
+        filter(
+          conditional(!is.null(input$bach_disc), disciplina %in% input$bach_disc),
+          conditional(!is.null(input$bach_professor), professor %in% input$bach_professor),
+          conditional(TRUE, periodo >= input$bach_periodo[1] & periodo <= input$bach_periodo[2]),
+          conditional(!is.null(input$bach_horario), horario %in% input$bach_horario),
+          conditional(!is.null(input$bach_turma), turma %in% input$bach_turma)
+        )
+    })
+    
+    taxa_aprovacao <- reactive({
+      (bach_filtrado() %>% 
+        count(resultado) %>% 
+        summarise(prop = n/sum(n), resultado = resultado) %>% 
+        filter(resultado == "Aprovação"))$prop
+    })
+    
+    taxa_reprovacao <- reactive({
+      (bach_filtrado() %>% 
+         count(resultado) %>% 
+         summarise(prop = n/sum(n), resultado = resultado) %>% 
+         filter(resultado == "Reprovação"))$prop
+    })
     
     output$aprovacoes2 <- renderInfoBox({
         infoBox(
-            "Aprovação média", "230 (30%)" ,
+            "Aprovação média",  label_percent(accuracy = 0.1, decimal.mark = ",")(taxa_aprovacao()),
             color = "aqua", fill = TRUE,icon=icon("check")
         )
     })
     
     output$reprovacoes2 <- renderInfoBox({
         infoBox(
-            "Reprovação média", "230 (30%)" ,
-            color = "red", fill = TRUE,icon=icon("prohibited")
+            "Reprovação média", label_percent(accuracy = 0.1, decimal.mark = ",")(taxa_reprovacao()),
+            color = "red", fill = TRUE,icon=icon("times")
         )
     })
     
-    output$bach_resultados <-renderPlotly({
-        p <- bacharelado %>% 
-            group_by(periodo, resultado) %>% 
-            summarise(n = n()) %>% summarise(prop = n/sum(n), resultado = resultado) %>% 
-            complete(resultado, fill = list(prop = 0)) %>% 
-            ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
-            geom_line() + 
-            labs(x="Período", y="Proporção") +
-            scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
-            scale_y_continuous(labels = scales::label_percent()) +
-            theme(axis.text.x = element_text(angle = 90, hjust = 1))
-            
-        ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
-        
-    })
     
     output$bach_mencoes <- renderPlotly({
-        p <- disc_selecionadas() %>% 
+        p <- bach_filtrado() %>% 
             filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
             mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) mean(.x %in% c("SR", "II", "MI")))) %>% 
             ggplot() + 
@@ -265,9 +280,22 @@ server <- function(input, output) {
             coord_flip()
         
         ggplotly(p)
-        
     })
     
+    output$bach_resultados <-renderPlotly({
+      p <- bach_filtrado() %>% 
+        group_by(periodo, resultado) %>% summarise(n = n()) %>% 
+        summarise(prop = n/sum(n), resultado = resultado) %>% 
+        complete(resultado, fill = list(prop = 0)) %>% 
+        ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
+        geom_line() + 
+        labs(x="Período", y="Proporção") +
+        scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
+        scale_y_continuous(labels = scales::label_percent()) +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      
+      ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+    })
 }
 
 shinyApp(ui, server)
