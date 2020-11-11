@@ -22,6 +22,18 @@ conditional <- function(condition, success) {
   if (condition) success else TRUE
 }
 
+professores_ativos <- c('ALAN RICARDO DA SILVA', 'ANA MARIA NOGALES VASCONCELOS', 'ANDRE LUIZ FERNANDES CANCADO',
+                        'ANTONIO EDUARDO GOMES', 'BERNARDO BORBA DE ANDRADE', 'BERNARDO NOGUEIRA SCHLEMPER',
+                        'CIBELE QUEIROZ DA SILVA', 'CIRA ETHEOWALDA GUEVARA OTINIANO', 'CLAUDETE RUAS',
+                        'DEMERSON ANDRE POLLI', 'DONALD MATTHEW PIANTO', 'EDUARDO FREITAS DA SILVA',
+                        'EDUARDO MONTEIRO DE CASTRO GOMES', 'EDUARDO YOSHIO NAKANO', 'GEORGE FREITAS VON BORRIES',
+                        'GERALDO DA SILVA E SOUZA', 'GLADSTON LUIZ DA SILVA', 'GUILHERME SOUZA RODRIGUES',
+                        'GUSTAVO LEONEL GILARDONI AVALLE', 'HELTON SAULO BEZERRA DOS SANTOS', 'ISRAEL DE FREITAS MADUREIRA',
+                        'JHAMES MATOS SAMPAIO', 'JOANLISE MARCO DE LEON ANDRADE', 'JOSE ANGELO BELLONI',
+                        'JOSE AUGUSTO FIORUCCI', 'JULIANA BETINI FACHINI GOMES', 'LEANDRO TAVARES CORREIA',
+                        'LUCAS MOREIRA', 'LUIS GUSTAVO DO AMARAL VINHA', 'MARIA TERESA LEAO COSTA', 'PETER ZORNIG', 
+                        'RAUL YUKIHIRO MATSUSHITA', 'ROBERTO VILA GABRIEL', 'THAIS CARVALHO VALADARES RODRIGUES')
+
 # App ---------------------------------------------------------------------
 
 sidebar<-dashboardSidebar(
@@ -61,113 +73,101 @@ body<-dashboardBody(
         tabItem(tabName = "serviço",
                 
                 fluidRow(
-                    box(title="Parâmetros",status = "warning",solidHeader = T,width=3,
-                        selectInput(
-                            'serv_disc', 'Filtre pela(s) disciplina(s):', choices = c("Estatística aplicada","Cálculo de probabilidade 1"),
-                            selectize = FALSE,selected = "None"
-                        ),
-                        sliderTextInput(
-                            inputId = "semestre",
-                            label = "Filtre pelo(s) semestre(s):", 
-                            choices = c("1/2016","2/2016","1/2017","2/2017","1/2018","2/2018","1/2019","2/2019","1/2020","2/2020"),
-                            selected = c("1/2018", "1/2018")
-                        ),
-                        selectInput(
-                            'curso', 'Filtre pelo(s) curso(s):', choices = c("Biologia","Economia","Ciência da computação","Contabilidade"),
-                            selectize = FALSE,selected = "None"
-                        ),
-                        selectInput(
-                            'professor', 'Filtre pelo(s) professor(es):', choices = c("Ana Maria Nogales","Eduardo Monteiro","Jhames Sampaio","Maria Teresa"),
-                            selectize = FALSE,selected = "None"
-                        ),
-                        sliderTextInput(
-                            inputId = "horario",
-                            label = "Filtre pelo horário:", 
-                            choices = c("8h", "10h", "12h", "14h", "16h",'18h')
-                        ),
-                        awesomeCheckboxGroup(
-                            inputId = "turma",
-                            label = "Filtre pela(s) turma(s):", 
-                            choices = c( "A", "B","C"),
-                            selected = "A",
-                            inline = TRUE, 
-                            status = "warning"
-                        ),
-                        actionBttn(
-                            inputId = "button",
-                            label = "Atualizar",
-                            style = "unite", 
-                            color = "primary"
-                        )
+                  column(width = 3,
+                         box(title="Parâmetros",status = "warning",solidHeader = T,width = NULL,
+                             selectInput('serv_disc', 'Filtre pela(s) disciplina(s):', 
+                                         choices = sort(unique(servico$disciplina)),
+                                         selected = "None",
+                                         multiple = TRUE
+                                         ),
+                             sliderTextInput("serv_periodo", "Filtre pelo(s) período(s):", 
+                                             choices = sort(unique(servico$periodo)),
+                                             selected = c(as.character(min(servico$periodo)), as.character(max(servico$periodo)))
+                             ),
+                             selectInput('curso', 'Filtre pelo(s) curso(s):', 
+                                         choices = sort(unique(servico$curso)),
+                                         selected = "None", 
+                                         multiple = TRUE
+                                         ),
+                             selectInput('serv_professor', 'Filtre pelo(s) professor(es):', 
+                                         choices = sort(professores_ativos),
+                                         selected = "None",
+                                         multiple = TRUE
+                                         ),
+                             selectInput("serv_horario", "Filtre pelo(s) horário(s):", 
+                                         choices = sort(unique(servico$horario)),
+                                         multiple = TRUE
+                             ),
+                             selectInput("serv_turma", "Filtre pela(s) turma(s):", 
+                                         choices = sort(as.character(unique(servico$turma))),
+                                         multiple = TRUE
+                             ),
                     ),
-                    infoBoxOutput("aprovacoes1"),
-                    infoBoxOutput("reprovacoes1")
+                    infoBoxOutput("serv_aprovacoes", width = 12),
+                    infoBoxOutput("serv_reprovacoes", width = 12)
+                  ),
+                  box(width = 9,
+                      title = "Menções",
+                      plotlyOutput("serv_mencoes", height = "665px")),
+                  box(width = 12,
+                      title = "Proporção de Aprovação, Reprovação e Trancamentos",
+                      plotlyOutput("serv_resultados")  
+                  )
                 )             
         ),
         
 # Bacharelado -------------------------------------------------------------
         
         tabItem(tabName = "bacharelado",
+                # fluidRow(
+                #   # Column 1
+                #   column(width = 6,
+                #          infoBox(
+                #            width = NULL,
+                #            title = "Regular Box, Column 1",
+                #            subtitle = "Gimme those Star Wars"
+                #          )
+                #   ),
                 
                 fluidRow(
-                    box(title="Parâmetros",status = "warning",solidHeader = T,width=3,
-                        selectInput(
-                            'bach_disc', 'Filtre pela(s) disciplina(s):', 
-                            choices = sort(unique(bacharelado$disciplina)),
-                            selected = "None",
-                            multiple = TRUE
+                  column(width = 3,
+                    box(title="Parâmetros",status = "warning",solidHeader = T,width = NULL,
+                        selectInput('bach_disc', 'Filtre pela(s) disciplina(s):', 
+                                    choices = sort(unique(bacharelado$disciplina)),
+                                    selected = "None",
+                                    multiple = TRUE
                         ),
-                        sliderTextInput(
-                            inputId = "bach_periodo",
-                            label = "Filtre pelo(s) periodo(s):", 
-                            choices = sort(unique(bacharelado$periodo)),
-                            selected = c(as.character(min(bacharelado$periodo)), as.character(max(bacharelado$periodo)))
+                        sliderTextInput("bach_periodo", "Filtre pelo(s) período(s):", 
+                                        choices = sort(unique(bacharelado$periodo)),
+                                        selected = c(as.character(min(bacharelado$periodo)), as.character(max(bacharelado$periodo)))
                         ),
-                        selectInput(
-                            'bach_professor', 'Filtre pelo(s) professor(es):', 
-                            choices = sort(unique(bacharelado$professor)),
-                            selected = "None",
-                            multiple = TRUE
+                        selectInput('bach_professor', 'Filtre pelo(s) professor(es):', 
+                                    choices = sort(professores_ativos),
+                                    selected = "None",
+                                    multiple = TRUE
                         ),
-                        selectInput(
-                            inputId = "bach_horario",
-                            label = "Filtre pelo(s) horário(s):", 
-                            choices = sort(unique(bacharelado$horario)),
-                            multiple = TRUE
+                        selectInput("bach_horario", "Filtre pelo(s) horário(s):", 
+                                    choices = sort(unique(bacharelado$horario)),
+                                    multiple = TRUE
                         ),
-                        selectInput(
-                            inputId = "bach_turma",
-                            label = "Filtre pela(s) turma(s):", 
-                            choices = sort(as.character(unique(bacharelado$turma))),
-                            multiple = TRUE
-                        ),
-                        actionBttn(
-                            inputId = "button",
-                            label = "Atualizar",
-                            style = "unite", 
-                            color = "primary"
+                        selectInput("bach_turma", "Filtre pela(s) turma(s):", 
+                                    choices = sort(as.character(unique(bacharelado$turma))),
+                                    multiple = TRUE
                         )
                     ),
-                    infoBoxOutput("aprovacoes2"),
-                    infoBoxOutput("reprovacoes2"),
-                    box(width = 8,
-                        title="Menções",
+                    infoBoxOutput("bach_aprovacoes", width = 12),
+                    infoBoxOutput("bach_reprovacoes", width = 12)
+                    ),
+                    box(width = 9,
+                        title = "Menções",
                         plotlyOutput("bach_mencoes", height = "800px")),
                     box(width = 12,
-                        title="Proporção de Aprovação, Reprovação e Trancamentos",
+                        title = "Proporção de Aprovação, Reprovação e Trancamentos",
                         plotlyOutput("bach_resultados")  
                     )
                 )
         )
-        
-        
-        
     )
-    
-    
-    
-    
-    
 )
 
 ui<-dashboardPage(sidebar = sidebar,header = header,body= body)
@@ -205,65 +205,113 @@ server <- function(input, output) {
         )
     })
     
-    output$aprovacoes1 <- renderInfoBox({
-        infoBox(
-            "Aprovação média", "230 (30%)" ,
-            color = "aqua", fill = TRUE,icon=icon("check")
+    serv_filtrado <- reactive({
+      servico %>%
+        filter(
+          conditional(!is.null(input$serv_disc), disciplina %in% input$serv_disc),
+          conditional(TRUE, periodo >= input$serv_periodo[1] & periodo <= input$serv_periodo[2]),
+          conditional(!is.null(input$curso), curso %in% input$curso),
+          conditional(!is.null(input$serv_professor), professor %in% input$serv_professor),
+          conditional(!is.null(input$serv_horario), horario %in% input$serv_horario),
+          conditional(!is.null(input$serv_turma), turma %in% input$serv_turma)
         )
     })
     
-    output$reprovacoes1 <- renderInfoBox({
-        infoBox(
-            "Reprovação média", "230 (30%)" ,
-            color = "red", fill = TRUE,icon=icon("prohibited")
-        )
+    serv_taxa_aprovacao <- reactive({
+      (serv_filtrado() %>% 
+         count(resultado) %>% 
+         summarise(prop = n/sum(n), resultado = resultado) %>% 
+         filter(resultado == "Aprovação"))$prop
+    })
+    
+    serv_taxa_reprovacao <- reactive({
+      (serv_filtrado() %>% 
+         count(resultado) %>% 
+         summarise(prop = n/sum(n), resultado = resultado) %>% 
+         filter(resultado == "Reprovação"))$prop
+    })
+    
+    output$serv_aprovacoes <- renderInfoBox({
+      infoBox(
+        "Aprovação média",  label_percent(accuracy = 0.1, decimal.mark = ",")(serv_taxa_aprovacao()),
+        color = "aqua", fill = TRUE,icon=icon("check")
+      )
+    })
+    
+    output$serv_reprovacoes <- renderInfoBox({
+      infoBox(
+        "Reprovação média", label_percent(accuracy = 0.1, decimal.mark = ",")(serv_taxa_reprovacao()),
+        color = "red", fill = TRUE,icon=icon("times")
+      )
+    })
+    
+    
+    output$serv_mencoes <- renderPlotly({
+      p <- serv_filtrado() %>% 
+        filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
+        mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) mean(.x %in% c("SR", "II", "MI")))) %>% 
+        ggplot() + 
+        geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao)), position = "fill") + 
+        labs(x="", y="Proporção", fill = "") +
+        scale_fill_brewer(palette = "RdBu", direction = -1) + 
+        coord_flip()
+      
+      ggplotly(p)
+    })
+    
+    output$serv_resultados <-renderPlotly({
+      p <- serv_filtrado() %>% 
+        group_by(periodo, resultado) %>% summarise(n = n()) %>% 
+        summarise(prop = n/sum(n), resultado = resultado) %>% 
+        complete(resultado, fill = list(prop = 0)) %>% 
+        ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
+        geom_line() + 
+        labs(x="Período", y="Proporção") +
+        scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
+        scale_y_continuous(labels = scales::label_percent()) +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      
+      ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
     })
     
 
 # Bacharelado -------------------------------------------------------------
 
-    # bach_filtrado <- reactive({
-    #   if(is.null(input$bach_disc)){
-    #     return(bacharelado)
-    #   }
-    #   filter(bacharelado, disciplina %in% input$bach_disc)
-    #   })
-    # 
     bach_filtrado <- reactive({
       bacharelado %>%
         filter(
           conditional(!is.null(input$bach_disc), disciplina %in% input$bach_disc),
-          conditional(!is.null(input$bach_professor), professor %in% input$bach_professor),
           conditional(TRUE, periodo >= input$bach_periodo[1] & periodo <= input$bach_periodo[2]),
+          conditional(!is.null(input$bach_professor), professor %in% input$bach_professor),
           conditional(!is.null(input$bach_horario), horario %in% input$bach_horario),
           conditional(!is.null(input$bach_turma), turma %in% input$bach_turma)
         )
     })
     
-    taxa_aprovacao <- reactive({
+    bach_taxa_aprovacao <- reactive({
       (bach_filtrado() %>% 
         count(resultado) %>% 
         summarise(prop = n/sum(n), resultado = resultado) %>% 
         filter(resultado == "Aprovação"))$prop
     })
     
-    taxa_reprovacao <- reactive({
+    bach_taxa_reprovacao <- reactive({
       (bach_filtrado() %>% 
          count(resultado) %>% 
          summarise(prop = n/sum(n), resultado = resultado) %>% 
          filter(resultado == "Reprovação"))$prop
     })
     
-    output$aprovacoes2 <- renderInfoBox({
+    output$bach_aprovacoes <- renderInfoBox({
         infoBox(
-            "Aprovação média",  label_percent(accuracy = 0.1, decimal.mark = ",")(taxa_aprovacao()),
+            "Aprovação",  label_percent(accuracy = 0.1, decimal.mark = ",")(bach_taxa_aprovacao()),
             color = "aqua", fill = TRUE,icon=icon("check")
         )
     })
     
-    output$reprovacoes2 <- renderInfoBox({
+    output$bach_reprovacoes <- renderInfoBox({
         infoBox(
-            "Reprovação média", label_percent(accuracy = 0.1, decimal.mark = ",")(taxa_reprovacao()),
+            "Reprovação", label_percent(accuracy = 0.1, decimal.mark = ",")(bach_taxa_reprovacao()),
             color = "red", fill = TRUE,icon=icon("times")
         )
     })
