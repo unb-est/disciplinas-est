@@ -13,7 +13,6 @@ library(scales)
 # Dados -------------------------------------------------------------------
 
 historico <- read_rds("historico_limpo.rds")
-vagas <- read_rds("vagas_limpo.rds")
 
 bacharelado <- historico %>% filter(tipo == "Bacharelado")
 servico <- historico %>% filter(tipo == "Serviço")
@@ -49,7 +48,6 @@ sidebar<-dashboardSidebar(
     )
     
 )
-
 
 header<-dashboardHeader(title = "Disciplinas da EST")
 
@@ -119,16 +117,6 @@ body<-dashboardBody(
 # Bacharelado -------------------------------------------------------------
         
         tabItem(tabName = "bacharelado",
-                # fluidRow(
-                #   # Column 1
-                #   column(width = 6,
-                #          infoBox(
-                #            width = NULL,
-                #            title = "Regular Box, Column 1",
-                #            subtitle = "Gimme those Star Wars"
-                #          )
-                #   ),
-                
                 fluidRow(
                   column(width = 3,
                     box(title="Parâmetros",status = "warning",solidHeader = T,width = NULL,
