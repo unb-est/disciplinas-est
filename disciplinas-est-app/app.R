@@ -9,17 +9,17 @@ library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
 library(scales)
+library(vroom)
+library(feather)
 
 # Dados -------------------------------------------------------------------
 
-historico <- read_rds("historico_limpo.rds")
+historico <- vroom("historico_limpo.csv")
+formandos <- read_feather("formandos")
+professores_dout <- read_feather("professores_dout")
 
 bacharelado <- historico %>% filter(tipo == "Bacharelado")
 servico <- historico %>% filter(tipo == "Serviço")
-
-conditional <- function(condition, success) {
-  if (condition) success else TRUE
-}
 
 professores_ativos <- c('ALAN RICARDO DA SILVA', 'ANA MARIA NOGALES VASCONCELOS', 'ANDRE LUIZ FERNANDES CANCADO',
                         'ANTONIO EDUARDO GOMES', 'BERNARDO BORBA DE ANDRADE', 'BERNARDO NOGUEIRA SCHLEMPER',
@@ -33,18 +33,31 @@ professores_ativos <- c('ALAN RICARDO DA SILVA', 'ANA MARIA NOGALES VASCONCELOS'
                         'LUCAS MOREIRA', 'LUIS GUSTAVO DO AMARAL VINHA', 'MARIA TERESA LEAO COSTA', 'PETER ZORNIG', 
                         'RAUL YUKIHIRO MATSUSHITA', 'ROBERTO VILA GABRIEL', 'THAIS CARVALHO VALADARES RODRIGUES')
 
+
 # App ---------------------------------------------------------------------
 
 sidebar<-dashboardSidebar(
-    sidebarMenu(
+    sidebarMenu(id="est",
         menuItem("Estatística", tabName = "geral", icon = icon("university")),
+        conditionalPanel(
+          condition = "input.est == 'geral'",
+          selectInput("period", "Semestre:", 
+                      choices = c(sort(unique(historico$periodo)), "Todos"),
+                      selected = "Todos")
+        ),
         menuItem("Disciplinas de Serviço", tabName = "serviço", icon = icon("handshake")),
+        conditionalPanel(
+          condition = "input.est == 'serviço'",
+          switchInput(inputId = "abs_serv", value = T, 
+                      label = "% | N", offLabel = "N", onLabel = "%", labelWidth = 40)
+        ),
         menuItem("Disciplinas do Bacharelado", tabName = "bacharelado", icon = icon("chart-line")),
-        switchInput(
-            inputId = "Id015",
-            label = "%", 
-            size = "mini"
-        )
+        conditionalPanel(
+          condition = "input.est == 'bacharelado'",
+          switchInput(inputId = "abs_bach", value = T, 
+                      label = "% | N", offLabel = "N", onLabel = "%", labelWidth = 40)
+        ),
+        menuItem("Professores", tabName = "prof", icon = icon("address-card"))
     )
     
 )
