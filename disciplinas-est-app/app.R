@@ -9,17 +9,18 @@ library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
 library(scales)
-library(vroom)
 library(feather)
 
 # Dados -------------------------------------------------------------------
 
-historico <- vroom("historico_limpo.csv")
+historico <- read_rds("historico_limpo.rds")
 formandos <- read_feather("formandos")
 professores_dout <- read_feather("professores_dout")
 
 bacharelado <- historico %>% filter(tipo == "Bacharelado")
 servico <- historico %>% filter(tipo == "Serviço")
+
+periodo<-levels(historico$periodo)
 
 professores_ativos <- c('ALAN RICARDO DA SILVA', 'ANA MARIA NOGALES VASCONCELOS', 'ANDRE LUIZ FERNANDES CANCADO',
                         'ANTONIO EDUARDO GOMES', 'BERNARDO BORBA DE ANDRADE', 'BERNARDO NOGUEIRA SCHLEMPER',
@@ -34,15 +35,16 @@ professores_ativos <- c('ALAN RICARDO DA SILVA', 'ANA MARIA NOGALES VASCONCELOS'
                         'RAUL YUKIHIRO MATSUSHITA', 'ROBERTO VILA GABRIEL', 'THAIS CARVALHO VALADARES RODRIGUES')
 
 
-# App ---------------------------------------------------------------------
+
+# UI - Barra Lateral ------------------------------------------------------
 
 sidebar<-dashboardSidebar(
     sidebarMenu(id="est",
         menuItem("Estatística", tabName = "geral", icon = icon("university")),
         conditionalPanel(
           condition = "input.est == 'geral'",
-          selectInput("period", "Semestre:", 
-                      choices = c(sort(unique(historico$periodo)), "Todos"),
+          selectInput("period", "Período:", 
+                      choices = c(as.character(sort(unique(historico$periodo))), "Todos"),
                       selected = "Todos")
         ),
         menuItem("Disciplinas de Serviço", tabName = "serviço", icon = icon("handshake")),
@@ -65,27 +67,41 @@ sidebar<-dashboardSidebar(
 header<-dashboardHeader(title = "Disciplinas da EST")
 
 body<-dashboardBody(
-    
-# Página Inicial ----------------------------------------------------------
-    
-    tabItems(
-        tabItem(tabName = "geral",
-                fluidRow(
-                    infoBoxOutput("alunos"),
-                    infoBoxOutput("professores"),
-                    infoBoxOutput("disciplinas"),
-                    infoBoxOutput("aprovacoes")
-                )            
-        ),
+
+# UI - Página 1 Geral -----------------------------------------------------
+
+tabItems(
+  tabItem(tabName = "geral",
+          fluidRow(
+            column(width = 3,
+                   infoBoxOutput("alunos", width = 12),
+                   infoBoxOutput("disciplinas", width = 12),
+                   infoBoxOutput("professores_ativ", width = 12),
+                   infoBoxOutput("aprovacoes_geral", width = 12),
+                   infoBoxOutput("reprovacoes_geral", width = 12)                     
+            ),
+            box(width = 3,
+                title = "Formação dos Professores",
+                plotlyOutput("professores_doutores")),
+            box(width = 3, 
+                title = "Tipo de Disciplina",
+                plotlyOutput("disciplinas_tipo"))),
+          fluidRow(
+            box(width = 9,
+                title = "Quantidade de Formandos",
+                plotlyOutput("formandos_prop")  
+            )
+          )            
+  ),
         
-        
-# Disciplinas de Serviço --------------------------------------------------
-        
+
+# UI - Página 2 Serviço ---------------------------------------------------
+
         tabItem(tabName = "serviço",
                 
                 fluidRow(
                   column(width = 3,
-                         box(title="Parâmetros",status = "warning",solidHeader = T,width = NULL,
+                         box(title="Parâmetros",status = "primary",solidHeader = T,width = NULL,
                              selectInput('serv_disc', 'Filtre pela(s) disciplina(s):', 
                                          choices = sort(unique(servico$disciplina)),
                                          selected = "None",
@@ -127,12 +143,13 @@ body<-dashboardBody(
                 )             
         ),
         
-# Bacharelado -------------------------------------------------------------
-        
+
+# UI - Página 3 Bacharelado -----------------------------------------------
+
         tabItem(tabName = "bacharelado",
                 fluidRow(
                   column(width = 3,
-                    box(title="Parâmetros",status = "warning",solidHeader = T,width = NULL,
+                    box(title="Parâmetros",status = "primary",solidHeader = T,width = NULL,
                         selectInput('bach_disc', 'Filtre pela(s) disciplina(s):', 
                                     choices = sort(unique(bacharelado$disciplina)),
                                     selected = "None",
@@ -174,30 +191,149 @@ body<-dashboardBody(
 ui<-dashboardPage(sidebar = sidebar,header = header,body= body)
 
 server <- function(input, output) {
-    
-    output$alunos <- renderInfoBox({
-        infoBox(
-            "Alunos", "100" ,
-            color = "blue", fill = TRUE,icon=icon("user-friends")
-        )
-    })
-    
-    output$professores <- renderInfoBox({
-        infoBox(
-            "Professores", "30" ,
-            color = "yellow", fill = TRUE,icon=icon("chalkboard-teacher")
-        )
-    })
-    
-    output$disciplinas <- renderInfoBox({
-        infoBox(
-            "Disciplinas", "20" ,
-            color = "red", fill = TRUE,icon=icon("book-reader")
-        )
-    })
 
 
-# Serviço -----------------------------------------------------------------
+# Server - Página 1 Geral -------------------------------------------------
+
+  opcao_hist<- reactive({
+    if(input$period=="Todos"){
+      opcao_hist<- historico
+    } else{
+      opcao_hist<- historico %>% filter(periodo==input$period)
+    }
+    
+    opcao_hist
+    
+  })
+  
+  output$alunos <- renderInfoBox({
+    infoBox(
+      "Alunos matriculados", nrow(opcao_hist() %>% filter(curso=="Estatística") %>%
+                                    summarise(unique(nome, ))) ,
+      color = "purple", fill = TRUE,icon=icon("user-friends")
+    )
+  })
+  
+  output$disciplinas <- renderInfoBox({
+    infoBox(
+      "Disciplinas ofertadas", nrow(unique(opcao_hist() %>% select(disciplina,tipo))),
+      color = "navy", fill = TRUE, icon=icon("book-reader")
+    )
+  })
+  
+  prof_ativ<-reactive({
+    prof_ativ<-opcao_hist() %>% summarise(professor=unique(professor))
+    prof_ativ
+  })
+  
+  output$professores_ativ <- renderInfoBox({
+    infoBox(
+      "Professores", nrow(prof_ativ()) ,
+      color = "light-blue", fill = TRUE, icon=icon("chalkboard-teacher")
+    )
+  })
+  
+  taxa_aprovacao <- reactive({
+    (opcao_hist() %>% 
+       count(resultado) %>% 
+       summarise(prop = n/sum(n), resultado = resultado) %>% 
+       filter(resultado == "Aprovação"))$prop      
+  })
+  
+  taxa_reprovacao <- reactive({
+    (opcao_hist() %>%
+       count(resultado) %>% 
+       summarise(prop = n/sum(n), resultado = resultado) %>% 
+       filter(resultado == "Reprovação"))$prop      
+  })  
+  
+  
+  output$aprovacoes_geral <- renderInfoBox({
+    infoBox(
+      "Aprovação média", label_percent(accuracy = 0.1, decimal.mark = ",")(taxa_aprovacao()) ,
+      color = "aqua", fill = TRUE,icon=icon("check")
+    )
+  })
+  
+  output$reprovacoes_geral <- renderInfoBox({
+    infoBox(
+      "Reprovação média", label_percent(accuracy = 0.1, decimal.mark = ",")(taxa_reprovacao()) ,
+      color = "red", fill = TRUE,icon=icon("times")
+    )
+  })
+  
+  #TODO: simplificar calculos dos professores doutores e gráfico
+  prof_dout <- reactive({
+    
+    if(input$period == "Todos"){
+      Sem_ano_dout<-as.numeric(str_sub(factor(periodo[length(periodo)]), end = 4))
+    } else{
+      Sem_ano_dout<-as.numeric(str_sub(factor(input$period), end = 4))
+    }
+    
+    prof_dout<-merge(prof_ativ(),
+                     professores_dout,by.x="professor",by.y="Professores",all.x=T) %>%
+      mutate(Ano_dout=if_else(Ano_dout<=Sem_ano_dout,1,Ano_dout),
+             Ano_dout=if_else(Ano_dout>Sem_ano_dout,0,Ano_dout),
+             Ano_dout=replace_na(Ano_dout, 0),
+             Ano_dout=as.character(Ano_dout),
+             Ano_dout=replace(Ano_dout, Ano_dout=="1", "Doutor"),
+             Ano_dout=replace(Ano_dout, Ano_dout=="0", "Mestre")) %>% count(Ano_dout)
+    
+    prof_dout
+  })
+  
+  output$professores_doutores<-renderPlotly({
+    prof_dout()%>%
+      plot_ly(labels = ~factor(Ano_dout), values = ~n,
+              sort = FALSE, marker = list(colors = c("#D0F5FF",
+                                                     "#79C1F4")))%>%
+      add_pie(hole = 0.6) %>% layout(showlegend = T,
+                                     xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                                     yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+    
+  })
+  
+  output$disciplinas_tipo <- renderPlotly({
+    unique(opcao_hist() %>% select(disciplina,tipo)) %>% count(tipo) %>%
+      plot_ly(labels = ~factor(tipo), values = ~n,
+              sort = FALSE, marker = list(colors = c("#00C5C3","#C5F1E9")))%>%
+      add_pie(hole = 0.6) %>% layout(showlegend = T,
+                                     xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                                     yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+    
+  })
+  
+  #TODO: Usar dados confiáveis de formandos (e precisa mesmo desse gráfico na 1a pagina?)
+  
+  prop_formandos<- reactive({
+    
+    if(input$period=="Todos"){
+      ano_form <- tail(periodo,1)
+    }else{
+      ano_form <- input$period
+    }
+    
+    prop_formandos <- formandos %>% 
+      group_by(periodo) %>% summarise(n = n()) %>% 
+      summarise(n=n, periodo=periodo) %>%
+      filter(periodo <= ano_form)
+    prop_formandos
+  })
+  
+  output$formandos_prop <-renderPlotly({
+    p <- prop_formandos()%>%
+      ggplot(aes(x = periodo, y = n,group=1, text = paste0('Período: ', periodo, '\n', 'Quantidade: ', n))) + 
+      geom_line(color="#00C5C3") + 
+      labs(x="Período", y="Quantidade") +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+  })
+  
+
+# Server - Página 2 Serviço -----------------------------------------------
+
 
     output$aprovacoes <- renderInfoBox({
         infoBox(
