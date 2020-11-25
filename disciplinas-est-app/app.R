@@ -47,16 +47,16 @@ sidebar<-dashboardSidebar(
                       choices = c(as.character(sort(unique(historico$periodo))), "Todos"),
                       selected = "Todos")
         ),
-        menuItem("Disciplinas de Serviço", tabName = "serviço", icon = icon("handshake")),
-        conditionalPanel(
-          condition = "input.est == 'serviço'",
-          switchInput(inputId = "abs_serv", value = T, 
-                      label = "% | N", offLabel = "N", onLabel = "%", labelWidth = 40)
-        ),
         menuItem("Disciplinas do Bacharelado", tabName = "bacharelado", icon = icon("chart-line")),
         conditionalPanel(
           condition = "input.est == 'bacharelado'",
-          switchInput(inputId = "abs_bach", value = T, 
+          switchInput(inputId = "porcent_bach", value = T, 
+                      label = "% | N", offLabel = "N", onLabel = "%", labelWidth = 40)
+        ),
+        menuItem("Disciplinas de Serviço", tabName = "serviço", icon = icon("handshake")),
+        conditionalPanel(
+          condition = "input.est == 'serviço'",
+          switchInput(inputId = "porcent_serv", value = T, 
                       label = "% | N", offLabel = "N", onLabel = "%", labelWidth = 40)
         ),
         menuItem("Professores", tabName = "prof", icon = icon("address-card"))
@@ -107,6 +107,7 @@ tabItems(
                                          selected = "None",
                                          multiple = TRUE
                                          ),
+                             #TODO: update selections
                              sliderTextInput("serv_periodo", "Filtre pelo(s) período(s):", 
                                              choices = sort(unique(servico$periodo)),
                                              selected = c(as.character(min(servico$periodo)), as.character(max(servico$periodo)))
@@ -129,16 +130,28 @@ tabItems(
                                          choices = sort(as.character(unique(servico$turma))),
                                          multiple = TRUE
                              ),
+                             #TODO: limpar campos
+                             actionBttn(
+                               inputId = "serv_limpar",
+                               label = "Limpar",
+                               style = "stretch", 
+                               color = "primary"
+                             ),
                     ),
                     infoBoxOutput("serv_aprovacoes", width = 12),
                     infoBoxOutput("serv_reprovacoes", width = 12)
                   ),
-                  box(width = 9,
-                      title = "Menções",
-                      plotlyOutput("serv_mencoes", height = "665px")),
-                  box(width = 12,
-                      title = "Proporção de Aprovação, Reprovação e Trancamentos",
-                      plotlyOutput("serv_resultados")  
+                  tabBox(
+                    title = "Disciplinas",
+                    id = "tabset0", width = 9,
+                    tabPanel("Menções", plotlyOutput("serv_mencoes", height = "665px")),
+                    tabPanel("Aprovações", plotlyOutput("serv_aprov", height = "665px"))
+                  ),
+                  tabBox(
+                    title = "Histórico",
+                    id = "tabset1", width = 12,
+                    tabPanel("Menções", plotlyOutput("serv_mencoes_hist")),
+                    tabPanel("Aprovações", plotlyOutput("serv_aprov_hist"))
                   )
                 )             
         ),
@@ -171,18 +184,33 @@ tabItems(
                         selectInput("bach_turma", "Filtre pela(s) turma(s):", 
                                     choices = sort(as.character(unique(bacharelado$turma))),
                                     multiple = TRUE
+                        ),
+                        actionBttn(
+                          inputId = "bach_limpar",
+                          label = "Limpar",
+                          style = "stretch", 
+                          color = "primary"
                         )
                     ),
+                    
                     infoBoxOutput("bach_aprovacoes", width = 12),
                     infoBoxOutput("bach_reprovacoes", width = 12)
                     ),
-                    box(width = 9,
-                        title = "Menções",
-                        plotlyOutput("bach_mencoes", height = "800px")),
-                    box(width = 12,
-                        title = "Proporção de Aprovação, Reprovação e Trancamentos",
-                        plotlyOutput("bach_resultados")  
-                    )
+                  tabBox(
+                    title = "Disciplinas",
+                    id = "tabset2", width = 9,
+                    tabPanel("Menções", plotlyOutput("bach_mencoes", height = "800px")),
+                    tabPanel("Aprovações", plotlyOutput("bach_aprov", height = "800px"))
+                    
+                  ),
+                  
+                  tabBox(
+                    title = "Histórico",
+                    # The id lets us use input$tabset1 on the server to find the current tab
+                    id = "tabset3", width = 12,
+                    tabPanel("Menções", plotlyOutput("bach_mencoes_hist")),
+                    tabPanel("Aprovações", plotlyOutput("bach_aprov_hist"))
+                  )
                 )
         )
     )
@@ -326,6 +354,7 @@ server <- function(input, output) {
       ggplot(aes(x = periodo, y = n,group=1, text = paste0('Período: ', periodo, '\n', 'Quantidade: ', n))) + 
       geom_line(color="#00C5C3") + 
       labs(x="Período", y="Quantidade") +
+      theme_minimal() +
       theme(axis.text.x = element_text(angle = 90, hjust = 1))
     
     ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
@@ -333,7 +362,6 @@ server <- function(input, output) {
   
 
 # Server - Página 2 Serviço -----------------------------------------------
-
 
     output$aprovacoes <- renderInfoBox({
         infoBox(
@@ -384,31 +412,141 @@ server <- function(input, output) {
     
     
     output$serv_mencoes <- renderPlotly({
-      p <- serv_filtrado() %>% 
-        filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
-        mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) mean(.x %in% c("SR", "II", "MI")))) %>% 
-        ggplot() + 
-        geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao)), position = "fill") + 
-        labs(x="", y="Proporção", fill = "") +
-        scale_fill_brewer(palette = "RdBu", direction = -1) + 
-        coord_flip()
+      if(input$porcent_serv == TRUE){
+        p <- serv_filtrado() %>% 
+          filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
+          mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) mean(.x %in% c("SR", "II", "MI")))) %>% 
+          ggplot() + 
+          geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao),
+                       text = paste0('Disciplina: ', disciplina, 
+                                     '\nResultado: ', resultado)), position = "fill") + 
+          labs(x="", y="Porcentagem de Alunos", fill = "") +
+          scale_fill_brewer(palette = "RdBu", direction = -1) + 
+          coord_flip() +
+          theme_minimal() +
+          scale_y_continuous(labels = scales::percent)
       
-      ggplotly(p)
+       ggplotly(p, tooltip = c('text', 'count'))
+       
+      } else{
+        p <- serv_filtrado() %>% 
+          filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
+          mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) sum(.x %in% c("SR", "II", "MI")))) %>% 
+          ggplot() + 
+          geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao),
+                       text = paste0('Disciplina: ', disciplina, 
+                                     '\nResultado: ', resultado))) + 
+          labs(x="", y="Número de Alunos", fill = "") +
+          scale_fill_brewer(palette = "RdBu", direction = -1) + 
+          coord_flip() +
+          theme_minimal()
+        
+        ggplotly(p, tooltip = c('text', 'count'))  
+      }
     })
     
-    output$serv_resultados <-renderPlotly({
-      p <- serv_filtrado() %>% 
-        group_by(periodo, resultado) %>% summarise(n = n()) %>% 
-        summarise(prop = n/sum(n), resultado = resultado) %>% 
-        complete(resultado, fill = list(prop = 0)) %>% 
-        ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
-        geom_line() + 
-        labs(x="Período", y="Proporção") +
-        scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
-        scale_y_continuous(labels = scales::label_percent()) +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    output$serv_aprov <- renderPlotly({
+      if(input$porcent_serv == TRUE){
+        p <- serv_filtrado() %>% 
+          mutate(disciplina = fct_reorder(disciplina, resultado, function(.x) mean(.x == "Reprovação"))) %>% 
+          ggplot() + 
+          geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(resultado),
+                       text = paste0('Disciplina: ', disciplina, 
+                                     '\nResultado: ', resultado)), position = "fill") + 
+          labs(x="", y="Porcenetagem de Alunos", fill = "") +
+          scale_fill_manual(values = c("#089abf", "gray80", "#dd4b39")) + 
+          coord_flip() +
+          theme_minimal() +
+          scale_y_continuous(labels = scales::percent)
       
-      ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+        ggplotly(p, tooltip = c('text', 'count'))
+        } else {
+          p <- serv_filtrado() %>% 
+            mutate(disciplina = fct_reorder(disciplina, resultado, function(.x) sum(.x == "Reprovação"))) %>% 
+            ggplot() + 
+            geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(resultado),
+                         text = paste0('Disciplina: ', disciplina, 
+                                       '\nResultado: ', resultado))) + 
+            labs(x="", y="Número de Alunos", fill = "") +
+            scale_fill_manual(values = c("#089abf", "gray80", "#dd4b39")) + 
+            coord_flip() +
+            theme_minimal()
+          
+          ggplotly(p, tooltip = c('text', 'count'))        
+      }
+    })
+    
+    output$serv_aprov_hist <-renderPlotly({
+      if(input$porcent_serv == TRUE){
+        p <- serv_filtrado() %>% 
+          group_by(periodo, resultado) %>% summarise(n = n()) %>% 
+          summarise(prop = n/sum(n), resultado = resultado) %>% 
+          complete(resultado, fill = list(prop = 0)) %>% 
+          ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nResultado:', resultado,
+                                      '\nPorcentagem de Alunos: ', label_percent(accuracy = 0.1, decimal.mark = ",")(prop)))) + 
+          labs(x="Período", y="Porcentagem de Alunos") +
+          scale_colour_manual(name="", values = c("#089abf", "#dd4b39", "gray80")) + 
+          scale_y_continuous(labels = scales::label_percent()) +
+          theme_minimal() +
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+      } else{
+        p <- serv_filtrado() %>% 
+          group_by(periodo, resultado) %>% 
+          summarise(n = n(), resultado = resultado) %>% 
+          complete(resultado, fill = list(n = 0)) %>% 
+          ggplot(aes(x = periodo, y = n, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nResultado:', resultado,
+                                      '\nNúmero de Alunos: ', n))) + 
+          labs(x="Período", y="Número de Alunos") +
+          scale_colour_manual(name="", values = c("#089abf", "#dd4b39", "gray80")) + 
+          theme_minimal() +
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+      }
+       
+    })
+    
+    output$serv_mencoes_hist <-renderPlotly({
+      if(input$porcent_serv == TRUE){
+        p <- serv_filtrado() %>% 
+          group_by(periodo, mencao) %>% summarise(n = n()) %>% 
+          summarise(prop = n/sum(n), mencao = mencao) %>% 
+          complete(mencao, fill = list(prop = 0)) %>% 
+          filter(mencao %in% c("SR", "II", "MI", "MM", "MS", "SS")) %>% 
+          ggplot(aes(x = periodo, y = prop, group = mencao, color = mencao)) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nMenção:', mencao,
+                                      '\nPorcentagem: ', label_percent(accuracy = 0.1, decimal.mark = ",")(prop)))) + 
+          labs(x="Período", y="Porcentagem") +
+          scale_color_brewer(palette = "RdBu") +
+          scale_y_continuous(labels = scales::label_percent()) +
+          theme_minimal() + 
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+      } else{
+        p <- serv_filtrado() %>% 
+          group_by(periodo, mencao) %>% 
+          summarise(n = n(), mencao = mencao) %>% 
+          complete(mencao, fill = list(n = 0)) %>% 
+          filter(mencao %in% c("SR", "II", "MI", "MM", "MS", "SS")) %>% 
+          ggplot(aes(x = periodo, y = n, group = mencao, color = mencao)) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nMenção:', mencao,
+                                      '\nNúmero de Alunos: ', n))) + 
+          labs(x="Período", y="Número de Alunos") +
+          scale_color_brewer(palette = "RdBu") +
+          theme_minimal() + 
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))        
+      }
     })
     
 
@@ -455,32 +593,142 @@ server <- function(input, output) {
     
     
     output$bach_mencoes <- renderPlotly({
+      
+      if(input$porcent_bach == TRUE){
         p <- bach_filtrado() %>% 
             filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
             mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) mean(.x %in% c("SR", "II", "MI")))) %>% 
             ggplot() + 
-            geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao)), position = "fill") + 
-            labs(x="", y="Proporção", fill = "") +
+            geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao),
+                         text = paste0('Disciplina: ', disciplina, 
+                                       '\nResultado: ', resultado)), position = "fill") + 
+            labs(x="", y="Porcentagem de Alunos", fill = "") +
             scale_fill_brewer(palette = "RdBu", direction = -1) + 
-            coord_flip()
+            coord_flip() +
+            theme_minimal() +
+          scale_y_continuous(labels = scales::percent)
         
-        ggplotly(p)
+        ggplotly(p, tooltip = c('text', 'count')) #TODO: consertar 'count'
+      } else{
+        p <- bach_filtrado() %>% 
+          filter(!mencao %in% c("CC", "DP", "TJ", "TR")) %>% 
+          mutate(disciplina = fct_reorder(disciplina, mencao, function(.x) sum(.x %in% c("SR", "II", "MI")))) %>% 
+          ggplot() + 
+          geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(mencao),
+                       text = paste0('Disciplina: ', disciplina, 
+                                     '\nResultado: ', resultado))) + 
+          labs(x="", y="Número de Alunos", fill = "") +
+          scale_fill_brewer(palette = "RdBu", direction = -1) + 
+          coord_flip() +
+          theme_minimal()
+        
+        ggplotly(p, tooltip = c('text', 'count'))
+      }
     })
     
-    output$bach_resultados <-renderPlotly({
+    output$bach_aprov <- renderPlotly({
+      if(input$porcent_bach == TRUE){
       p <- bach_filtrado() %>% 
-        group_by(periodo, resultado) %>% summarise(n = n()) %>% 
-        summarise(prop = n/sum(n), resultado = resultado) %>% 
-        complete(resultado, fill = list(prop = 0)) %>% 
-        ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
-        geom_line() + 
-        labs(x="Período", y="Proporção") +
-        scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
-        scale_y_continuous(labels = scales::label_percent()) +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        mutate(disciplina = fct_reorder(disciplina, resultado, function(.x) mean(.x %in% c("Reprovação", "Trancamento")))) %>% 
+        ggplot() + 
+        geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(resultado),
+                     text = paste0('Disciplina: ', disciplina, 
+                                   '\nResultado: ', resultado)), position = "fill") + 
+        labs(x="", y="Porcentagem", fill = "") +
+        scale_fill_manual(values = c("#089abf", "gray80", "#dd4b39")) + 
+        coord_flip() +
+        theme_minimal() +
+        scale_y_continuous(labels = scales::percent)
       
-      ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+      ggplotly(p, tooltip = c('text', 'count'))
+      } else{
+        p <- bach_filtrado() %>% 
+          mutate(disciplina = fct_reorder(disciplina, resultado, function(.x) sum(.x %in% c("Reprovação", "Trancamento")))) %>% 
+          ggplot() + 
+          geom_bar(aes(x = fct_rev(disciplina), fill = fct_rev(resultado),
+                       text = paste0('Disciplina: ', disciplina, 
+                                     '\nResultado: ', resultado))) + 
+          labs(x="", y="Número de Alunos", fill = "") +
+          scale_fill_manual(values = c("#089abf", "gray80", "#dd4b39")) + 
+          coord_flip() +
+          theme_minimal()
+        
+        ggplotly(p, tooltip = c('text', 'count'))
+      }
     })
+    
+    output$bach_aprov_hist <-renderPlotly({
+      if(input$porcent_bach == TRUE){
+        p <- bach_filtrado() %>% 
+          group_by(periodo, resultado) %>% summarise(n = n()) %>% 
+          summarise(prop = n/sum(n), resultado = resultado) %>% 
+          complete(resultado, fill = list(prop = 0)) %>% 
+          ggplot(aes(x = periodo, y = prop, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                    '\nResultado:', resultado,
+                                    '\nPorcentagem de Alunos: ', label_percent(accuracy = 0.1, decimal.mark = ",")(prop)))) + 
+          labs(x="Período", y="Porcentagem de Alunos") +
+          scale_colour_manual(name="", values = c("#089abf", "#dd4b39", "gray80")) + 
+          scale_y_continuous(labels = scales::label_percent()) +
+          theme_minimal() +
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+      } else{
+        p <- bach_filtrado() %>% 
+          group_by(periodo, resultado) %>% 
+          summarise(n = n(), resultado = resultado) %>% 
+          complete(resultado, fill = list(n = 0)) %>% 
+          ggplot(aes(x = periodo, y = n, group = resultado, color = factor(resultado, levels = c("Aprovação", "Reprovação", "Trancamento")))) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nResultado:', resultado,
+                                      '\nNúmero de Alunos: ', n))) + 
+          labs(x="Período", y="Número de Alunos") +
+          scale_colour_manual(name="", values = c("#089abf", "#dd4b39", "gray80")) + 
+          theme_minimal() +
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))        
+      }
+    })
+    
+    output$bach_mencoes_hist <-renderPlotly({
+      if(input$porcent_bach == TRUE){
+        p <- bach_filtrado() %>% 
+          group_by(periodo, mencao) %>% summarise(n = n()) %>% 
+          summarise(prop = n/sum(n), mencao = mencao) %>% 
+          complete(mencao, fill = list(prop = 0)) %>% 
+          filter(mencao %in% c("SR", "II", "MI", "MM", "MS", "SS")) %>% 
+          ggplot(aes(x = periodo, y = prop, group = mencao, color = mencao)) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nMenção:', mencao,
+                                      '\nPorcentagem de Alunos: ', label_percent(accuracy = 0.1, decimal.mark = ",")(prop)))) + 
+          labs(x="Período", y="Porcentagem") +
+          #scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
+          scale_color_brewer(palette = "RdBu") +
+          scale_y_continuous(labels = scales::label_percent()) +
+          theme_minimal() + 
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
+      } else{
+        p <- bach_filtrado() %>% 
+          group_by(periodo, mencao) %>% 
+          summarise(n = n(), mencao = mencao) %>% 
+          complete(mencao, fill = list(n = 0)) %>% 
+          filter(mencao %in% c("SR", "II", "MI", "MM", "MS", "SS")) %>% 
+          ggplot(aes(x = periodo, y = n, group = mencao, color = mencao)) + 
+          geom_line(aes(text = paste0('Período: ', periodo, 
+                                      '\nMenção:', mencao,
+                                      '\nNúmero de Alunos: ', n))) + 
+          labs(x="Período", y="Número de Alunos") +
+          #scale_colour_manual(name="", values = c("#00A4CD", "#F08080", "yellow")) + 
+          scale_color_brewer(palette = "RdBu") +
+          theme_minimal() + 
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))        
+      }
+    })
+    
 }
 
 shinyApp(ui, server)
