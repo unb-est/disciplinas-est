@@ -9,6 +9,7 @@ library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
 library(scales)
+library(shinycssloaders)
 
 # Dados -------------------------------------------------------------------
 
@@ -134,16 +135,16 @@ tabItems(
                   tabBox(
                     title = "Disciplinas",
                     id = "tabset0", width = 9,
-                    tabPanel("Menções", plotlyOutput("bach_mencoes", height = "800px")),
-                    tabPanel("Reprovações", plotlyOutput("bach_aprov", height = "800px"))
-                    
+                    tabPanel("Menções", withSpinner(plotlyOutput("bach_mencoes", height = "800px"))),
+                    tabPanel("Reprovações", withSpinner(plotlyOutput("bach_aprov", height = "800px")))
+                    #withSpinner(plotlyOutput("mapa", height = "600px")), hide.ui = FALSE)
                   ),
                   
                   tabBox(
                     title = "Histórico",
                     id = "tabset1", width = 12,
-                    tabPanel("Menções", plotlyOutput("bach_mencoes_hist")),
-                    tabPanel("Reprovações", plotlyOutput("bach_aprov_hist"))
+                    tabPanel("Menções", withSpinner(plotlyOutput("bach_mencoes_hist"))),
+                    tabPanel("Reprovações", withSpinner(plotlyOutput("bach_aprov_hist")))
                   )
                 )
         ),
@@ -200,14 +201,14 @@ tabItem(tabName = "serviço",
           tabBox(
             title = "Disciplinas",
             id = "tabset2", width = 9,
-            tabPanel("Menções", plotlyOutput("serv_mencoes", height = "665px")),
-            tabPanel("Reprovações", plotlyOutput("serv_aprov", height = "665px"))
+            tabPanel("Menções", withSpinner(plotlyOutput("serv_mencoes", height = "665px"))),
+            tabPanel("Reprovações", withSpinner(plotlyOutput("serv_aprov", height = "665px")))
           ),
           tabBox(
             title = "Histórico",
             id = "tabset3", width = 12,
-            tabPanel("Menções", plotlyOutput("serv_mencoes_hist")),
-            tabPanel("Reprovações", plotlyOutput("serv_aprov_hist"))
+            tabPanel("Menções", withSpinner(plotlyOutput("serv_mencoes_hist"))),
+            tabPanel("Reprovações", withSpinner(plotlyOutput("serv_aprov_hist")))
             )
           )             
         ),
@@ -253,17 +254,23 @@ tabItem(tabName = "prof",
                        style = "stretch", 
                        color = "primary"
                      )
-                 )
+                 ),
+                 infoBoxOutput("prof_alunos_por_professor_geral", width = 12)
           ),
           tabBox(
             title = "Professores",
             id = "tabset4", width = 9,
             tabPanel("Menções",
-                     plotlyOutput("prof_mencoes", height = "1000px")),
+                     withSpinner(plotlyOutput("prof_mencoes", height = "1000px"))),
             tabPanel("Reprovações",
-                     plotlyOutput("prof_aprov", height = "1000px")),
+                     withSpinner(plotlyOutput("prof_aprov", height = "1000px"))),
             tabPanel("Alunos por Professor",
-                     plotlyOutput("prof_alunos_por_prof", height = "1000px"))
+                     withSpinner(plotlyOutput("prof_alunos_por_prof", height = "1000px")))
+            ),
+          tabBox(
+            title = "Histórico",
+            id = "prof_hist", width = 12,
+            tabPanel("Alunos por Professor", withSpinner(plotlyOutput("prof_alunos_por_professor_hist")))
             )
           )
         )
@@ -465,15 +472,15 @@ server <- function(input, output, session) {
       }
     })
     
-    bach_professores <- reactive(filter(bacharelado, professor %in% input$bach_professor))
-    
-    observe({
-      if (!is.null(input$bach_professor)){
-        updateSelectInput(session, "bach_disc", choices = sort(unique(bach_professores()$disciplina)))
-      } else {
-        updateSelectInput(session, "bach_disc", choices = sort(unique(bacharelado$disciplina)))  
-      }
-    })
+    # bach_professores <- reactive(filter(bacharelado, professor %in% input$bach_professor))
+    # 
+    # observe({
+    #   if (!is.null(input$bach_professor)){
+    #     updateSelectInput(session, "bach_disc", choices = sort(unique(bach_professores()$disciplina)))
+    #   } else {
+    #     updateSelectInput(session, "bach_disc", choices = sort(unique(bacharelado$disciplina)))  
+    #   }
+    # }) Erro que limpa as disciplinas depois que seleciona o professor
     
     observeEvent(input$bach_limpar, {
       updateSelectInput(session, "bach_disc", selected = "None")
@@ -1170,15 +1177,15 @@ server <- function(input, output, session) {
       }
     })
     
-    serv_professores <- reactive(filter(servico, professor %in% input$serv_professor))
-    
-    observe({
-      if (!is.null(input$serv_professor)){
-        updateSelectInput(session, "serv_disc", choices = sort(unique(serv_professores()$disciplina)))
-      } else {
-        updateSelectInput(session, "serv_disc", choices = sort(unique(servico$disciplina)))  
-      }
-    })
+    # serv_professores <- reactive(filter(servico, professor %in% input$serv_professor))
+    # 
+    # observe({
+    #   if (!is.null(input$serv_professor)){
+    #     updateSelectInput(session, "serv_disc", choices = sort(unique(serv_professores()$disciplina)))
+    #   } else {
+    #     updateSelectInput(session, "serv_disc", choices = sort(unique(servico$disciplina)))  
+    #   }
+    # }) Erro que limpa as disciplinas depois que seleciona o professor
     
     observeEvent(input$serv_limpar, {
       updateSelectInput(session, "serv_disc", selected = "None")
@@ -1828,15 +1835,15 @@ server <- function(input, output, session) {
       }
     })
     
-    prof_professores <- reactive(filter(historico, professor %in% input$prof_professor))
-    
-    observe({
-      if (!is.null(input$prof_professor)){
-        updateSelectInput(session, "prof_disc", choices = sort(unique(prof_professores()$disciplina)))
-      } else {
-        updateSelectInput(session, "prof_disc", choices = sort(unique(historico$disciplina)))  
-      }
-    })
+    # prof_professores <- reactive(filter(historico, professor %in% input$prof_professor))
+    # 
+    # observe({
+    #   if (!is.null(input$prof_professor)){
+    #     updateSelectInput(session, "prof_disc", choices = sort(unique(prof_professores()$disciplina)))
+    #   } else {
+    #     updateSelectInput(session, "prof_disc", choices = sort(unique(historico$disciplina)))  
+    #   }
+    # }) Erro que limpa as disciplinas depois que seleciona o professor
     
     observeEvent(input$prof_limpar, {
       updateSelectInput(session, "prof_disc", selected = "None")
@@ -2165,17 +2172,54 @@ server <- function(input, output, session) {
         
       }
     })
+   
+    alunos_por_professor_geral <- reactive({
+      (hist_filtrado() %>% 
+         group_by(professor, periodo) %>% 
+         summarise(alunos_professor_periodo = length(nome)) %>% 
+         summarise(alunos_por_professor = mean(alunos_professor_periodo)) %>% summarise(alunos_por_professor_geral = mean(alunos_por_professor)))[[1]]
+    })
+    
+    output$prof_alunos_por_professor_geral <- renderInfoBox({
+      infoBox(
+        "Alunos por Professor", label_number(accuracy = 0.1, decimal.mark = ",")(alunos_por_professor_geral()),
+        color = "light-blue", fill = TRUE,icon=icon("chalkboard-teacher")
+      )
+    })
     
     output$prof_alunos_por_prof <- renderPlotly({
       hist_filtrado() %>% 
         group_by(professor, periodo) %>% 
-        summarise(alunos_professor_periodo = length(nome)) %>% 
+        summarise(alunos_professor_periodo = length(nome)) %>% # contar aluno duas vezes se faz duas matérias com o mesmo professor? n_distinct?
         summarise(alunos_por_professor = mean(alunos_professor_periodo)) %>% 
         mutate(professor = fct_reorder(professor, alunos_por_professor)) %>% 
-        plot_ly(type = "scatter", mode = "markers", x = ~alunos_por_professor, y = ~professor) %>% 
+        plot_ly(type = "scatter", mode = "markers", x = ~alunos_por_professor, y = ~professor, 
+                color = I("#2266ac"), size = 15,
+                hoverinfo = "text", text = ~paste0('Professor: ', professor, 
+                                                   '\nAlunos por profes1sor: ', label_number(accuracy = 0.1, decimal.mark = ",")(alunos_por_professor))) %>% 
+        add_segments(y = ~professor, yend = ~professor, x = 0, xend= ~alunos_por_professor,
+                     size = I(3)) %>%
         layout(yaxis = list(title = ""),
-               xaxis = list(title = "Quantidade de Alunos por Professor"))
+               xaxis = list(title = "Quantidade de Alunos por Professor"),
+               margin = list(pad = 5),
+               showlegend = FALSE)
       
+    })
+    
+    output$prof_alunos_por_professor_hist <-renderPlotly({
+          p <- hist_filtrado() %>% 
+            group_by(periodo, professor) %>% 
+            summarise(alunos_professor_periodo = length(nome)) %>%
+            summarise(alunos_por_professor = mean(alunos_professor_periodo)) %>% 
+            ggplot(aes(x = periodo, y = alunos_por_professor, group = 1)) + 
+            geom_line(aes(text = paste0('Período: ', periodo, 
+                                        '\nAlunos por professor: ', label_number(accuracy = 0.1, decimal.mark = ",")(alunos_por_professor))),
+                      color = "#2266ac") + 
+            labs(x="Período", y="Alunos por Professor") +
+            theme_minimal() + 
+            theme(axis.text.x = element_text(angle = 90, hjust = 1))
+          
+          ggplotly(p, tooltip = 'text') %>% layout(legend = list(orientation = "h", x = 0, y = 1.15))
     })
 }
 
