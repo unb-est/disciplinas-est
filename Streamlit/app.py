@@ -2,14 +2,21 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from PIL import Image
 
-st.markdown("## Disciplinas da Est")
+st.markdown("## Informações Gerais do Departamento")
+
+image = Image.open('unb_logo.png')
+st.sidebar.image(image, use_column_width=True)
+
 st.sidebar.title("Disciplinas da Est")
 st.markdown("This application is a Streamlit dashboard to analyze the sentiment of tweets 🐦")
 
 st.sidebar.markdown("This application is a Streamlit dashboard to analyze the sentiment of tweets 🐦")
 
 DATA_URL = ("/Users/gabrielreis/Capacitação/Streamlit/Tweets.csv")
+
+historico_url = ("/Users/gabrielreis/Git/disciplinas-est/Streamlit/historico.csv")
 
 @st.cache(persist=True)
 def load_data():
@@ -19,13 +26,7 @@ def load_data():
 
 data = load_data()
 
-st.sidebar.subheader("Show random tweet")
-random_tweet = st.sidebar.radio('Sentiment', ('positive', 'neutral', 'negative'))
-st.sidebar.markdown(data.query('airline_sentiment == @random_tweet')[['text']].sample(n=1).iat[0,0])
-# sem o iat ia retornar um df com 1 valor
-
-st.sidebar.markdown("### Number of tweets by sentiment")
-select = st.sidebar.selectbox('Visualization type', ['Histogram', 'Pie chart'], key='1')
+select = st.sidebar.selectbox('Período', ['Histogram', 'Pie chart'], key='1')
 sentiment_count = data['airline_sentiment'].value_counts()
 
 sentiment_count = pd.DataFrame({'Sentiment': sentiment_count.index,
